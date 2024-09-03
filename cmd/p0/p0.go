@@ -13,39 +13,52 @@ const (
 	TYPE = "tcp"
 )
 
-func StartTCPServer() {
-	listen, err := net.Listen(TYPE, HOST+":"+PORT)
+func EchoServer() {
+	listener, err := net.Listen(TYPE, HOST+":"+PORT)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
+	fmt.Printf("echo server starting on %s\n", PORT)
 
-	defer listen.Close()
+	defer listener.Close()
 
 	for {
-		conn, err := listen.Accept()
+		socket, err := listener.Accept()
 		if err != nil {
 			log.Fatal(err)
 			os.Exit(1)
 		}
 
-		go handleConn(conn)
+		go handleSocket(socket)
 	}
 
 }
 
-func handleConn(conn net.Conn) {
-	fmt.Println("received a connection")
-	defer conn.Close()
+func handleSocket(socket net.Conn) {
+	defer socket.Close()
+
+	buffer := make([]byte, 10000)
 
 	for {
-		buffer := make([]byte, 1024)
-		if _, err := conn.Read(buffer); err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("received msg %s\n", string(buffer))
+		packet := make([]byte, 1024)
+		length, err := socket.Read(packet)
 
-		// write data to response
-		conn.Write(buffer)
+		// EOF
+		if length == 0 {
+			fmt.Println("recv EOF")
+			break
+		}
+
+		// Other errors
+		if err != nil {
+			fmt.Printf("error %s\n", err)
+			break
+		}
+
+		buffer = append(buffer, packet...)
 	}
+
+	// write data to responsete
+	socket.Write(buffer)
 }
